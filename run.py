@@ -26,7 +26,7 @@ print("-----------------------------------------------------------------------")
 
 # ------- CONSTANTS
 FOLDER_PATH = ".deembox"
-FOLDER_NAME = "sniffer"
+FOLDER_NAME = "wifisniffer"
 SOCKET_PROTOCOL = 0x0003
 BYTE_READ = 2048
 

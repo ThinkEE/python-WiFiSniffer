@@ -8,8 +8,8 @@ Group=root
 StandardInput=null
 StandardOutput=journal
 StandardError=journal
-WorkingDirectory=/home/root/[VIRTUALENV_DIR]/[REPO_DIR]/
-ExecStart=/home/root/[VIRTUALENV_DIR]/bin/python  /home/root/[VIRTUALENV_DIR]/[REPO_DIR]/run.py
+WorkingDirectory=/home/root/WiFiSniffer/python-WiFiSniffer/
+ExecStart=/home/root/WiFiSniffer/bin/python  /home/root/WiFiSniffer/python-WiFiSniffer/run.py
 Restart=on-abort
 
 [Install]

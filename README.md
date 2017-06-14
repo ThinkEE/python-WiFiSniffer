@@ -75,9 +75,9 @@ I used the [branch brcmfmac_kernel410](https://github.com/seemoo-lab/nexmon/tree
 ### Initialization
 
 * Works for Raspbian System
-  * Create `.deembox` in root folder `sudo mkdir /root/.lyla/`
-  * Create `sniffer` in root `sudo mkdir /root/.lyla/wifisniffer/`
-  * Create `config.json` in root `sudo nano /root/.lyla/wifisniffer/config.json`
+  * Create `.deembox` in root folder `sudo mkdir /root/.deembox/`
+  * Create `sniffer` in root `sudo mkdir /root/.deembox/wifisniffer/`
+  * Create `config.json` in root `sudo nano /root/.deembox/wifisniffer/config.json`
 
 ## Run
 
