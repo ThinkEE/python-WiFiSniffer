@@ -62,7 +62,7 @@ print("INFO: Bind to raw socket %s" %(interface))
 address = get_setting("udp_ip")
 port = get_setting("udp_port")
 server_address = (address, port)
-print("INFO: UPD socket on ip %s: port %s" %(interface, port))
+print("INFO: UPD socket on ip %s: port %s" %(address, port))
 
 print("INFO: --------- Start Sniffer -----------")
 try:
