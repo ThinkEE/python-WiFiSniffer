@@ -8,8 +8,8 @@ Group=root
 StandardInput=null
 StandardOutput=journal
 StandardError=journal
-WorkingDirectory=/home/root/WiFiSniffer/python-WiFiSniffer/
-ExecStart=/home/root/WiFiSniffer/bin/python  /home/root/WiFiSniffer/python-WiFiSniffer/run.py
+WorkingDirectory=/root/WiFiSniffer/python-WiFiSniffer/
+ExecStart=/root/WiFiSniffer/bin/python  /root/WiFiSniffer/python-WiFiSniffer/run.py
 Restart=on-abort
 
 [Install]
