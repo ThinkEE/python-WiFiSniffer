@@ -9,8 +9,6 @@ Working on RPI3 with Raspbian Lite Install
 
 Code used to sniff the packet around the RPI. It catches the mac addresses and send them using UDP.
 
-`Needs to be install as root user`
-
 ## Configuration
 
 See `config.json` file in configuration folder
@@ -24,95 +22,125 @@ See `config.json` file in configuration folder
 Needs to be install as root user
 * `sudo su`
 
+### RPI Installation
+
+* Flash image on RPI
+* Boot RPI
+* Plug SD card to computer
+* Configure [OTG](http://www.circuitbasics.com/raspberry-pi-zero-ethernet-gadget/)
+  * Add `modules-load=dwc2,g_ether` at end of file `cmdline.txt`
+  * Add `dtoverlay=dwc2` in file `config.txt`
+* Create file `ssh` on SD card
+
+* Boot RPI
+* Connect as SSH `ssh pi@raspberrypi.local`
+  * User: `pi`
+  * Password: `raspberry`
+* Share Internet connection
+
 ### Environment Installation
 
+`Needs to be install as root user`
+
 * The WiFi chip driver need to be changed so you can enable monitor mode.
-
 * We are using [Nexmon](https://github.com/seemoo-lab/nexmon). See github repo for setup information
-
-* For Pi Zero Change files according to this [pull request](https://github.com/seemoo-lab/nexmon/pull/55)
-* Build patches for bcm43438 on the RPI3/Zero W using Raspbian 8 (recommended). Duplicate from [Nexmon github repo](https://github.com/seemoo-lab/nexmon)
+* Build patches for bcm43430a1 on the RPI3/Zero W or bcm434355c0 on the RPI3+ using Raspbian (recommended). Duplicate from [Nexmon github repo](https://github.com/seemoo-lab/nexmon)
   * Log as root `sudo su`
   * `apt-get update && apt-get upgrade`
-  * Install the kernel headers to build the driver and some dependencies: `apt install raspberrypi-kernel-headers git libgmp3-dev gawk qpdf flex bison`
+  * Install the kernel headers to build the driver and some dependencies: `apt install raspberrypi-kernel-headers git libgmp3-dev gawk qpdf bison flex make`
   * Clone `git clone https://github.com/seemoo-lab/nexmon.git`
   * `cd nexmon`
+  * Check if `ls /usr/lib/arm-linux-gnueabihf/libisl.so.10` exists, if not, compile it from source:
+    * `cd buildtools/isl-0.10`
+    * `./configure`
+    * `make`
+    * `make install`
+    * `ln -s /usr/local/lib/libisl.so /usr/lib/arm-linux-gnueabihf/libisl.so.10`
+    * `cd ../..`
+  * Then you can setup the build environment for compiling firmware patches
     * Setup the build environment: `source setup_env.sh`
     * Compile some build tools and extract the ucode and flashpatches from the original firmware files: `make`
-  * `cd patches/bcm43438/7_45_41_26/nexmon/`
+  * Go to the patches folder for the `bcm43430a1/bcm43455c0` chipset: `cd patches/bcm43430a1/7_45_41_46/nexmon/`
     * Compile a patched firmware: `make`
     * Generate a backup of your original firmware file: `make backup-firmware`
     * Install the patched firmware on your RPI3: `make install-firmware`
-  * `cd utilities/nexutil/`
+    * `cd ../../../..`
+  * Install nexutil from the root directory of our repository
+    * Switch to the nexutil folder: `cd utilities/nexutil/`
     * Compile and install nexutil: `make && make install`
-  * Optional: remove wpa_supplicant for better control over the WiFi interface: `apt-get remove wpasupplicant`
-
-  * Activate monitor mode `nexutil -m2`
+  * Remove wpa_supplicant for better control over the WiFi interface: `apt-get remove wpasupplicant`
+  * Execute: `iw phy \`iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'\` interface add mon0 type monitor`
+  * Set the interface up: `ifconfig mon0 up`
   * Check `iwconfig`
+  * To make the RPI3 load the modified driver after reboot:
+    * Find the path of the default driver at reboot: `modinfo brcmfmac` #the first line should be the full path
+    * Backup the original driver: `mv "<PATH TO THE DRIVER>" "<PATH TO THE DRIVER>.orig"`
+    * Copy the modified driver (Kernel 4.14): `cp /home/pi/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/brcmfmac_4.14.y-nexmon/brcmfmac.ko "<PATH TO THE DRIVER>/"`
+    * Probe all modules and generate new dependency: `depmod -a`
+  * Start interface at Start
+    * Open file `nano /etc/rc.local`
+    * Add following lines
+    ```
+    echo "Creating Interface mon0"
+    iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor
+    ifconfig mon0 up
+    echo "Interface mon0 created"
+    ```
 
-### Patch for new version
+### Module Installation
 
-* Change Makefile according to pull [request](https://github.com/seemoo-lab/nexmon/pull/55/files)
-* Change `4.4.9-v7l+` by `4.9.24+` in Makefile
-
-I used the [branch brcmfmac_kernel410](https://github.com/seemoo-lab/nexmon/tree/brcmfmac_kernel410) according to the instruction of issue [#85](https://github.com/seemoo-lab/nexmon/issues/85) then I had to change `4.4.9-v7l+` by `4.9.24+` in file `patches/bcm43438/7_45_41_26/nexmon/Makefile`. Finally, I followed the steps described in [#55]((https://github.com/seemoo-lab/nexmon/pull/55/files)) . The only difference is in file `utilities/libnexio/Makefile` line 5 instead of `ifeq ($(shell uname -m), $(filter $(shell uname -m), armv7l armv6l))` I had to put `ifneq ($(shell uname -m), $(filter $(shell uname -m), armv7l armv6l))` or it will try to compile for an android target.
-
-### Modules Installation
-
+* Install Virtualenv `apt-get install python-virtualenv`
+* Install dependencies
+  * `apt-get install build-essential`
+  * `apt-get install python-dev`
+  * `apt-get install libssl-dev`
+  * `apt-get install libffi-dev`
 * Create Virtualenv (Instruction for Raspbian)
-  * `virtualenv WiFiSniffer`
-  * `cd WiFiSniffer`
+  * `virtualenv Sniffee`
+  * `cd Sniffee`
   * `source bin/activate`
-
 * Clone [WiFiSniffer](https://github.com/ThinkEE/python-WiFiSniffer) in newly created virtualenv
+  * `git clone https://github.com/ThinkEE/python-WiFiSniffer.git sniffee`
+* Install dependencies `pip install -r requirements.txt`
 
-### Packages Dependencies
-
-* Install dependencies `pip install -r requierements.txt`
-
-* Install [dpkt](https://github.com/kbandla/dpkt) `pip install dpkt`
-
-### Initialization
+### Initialisation
 
 * Works for Raspbian System
-  * Create `.deembox` in root folder `sudo mkdir /root/.deembox/`
-  * Create `sniffer` in root `sudo mkdir /root/.deembox/wifisniffer/`
-  * Create `config.json` in root `sudo nano /root/.deembox/wifisniffer/config.json`
-
-## Run
-
-* Activate WiFi monitor mode (Needs to be done after each restart)
-  * Log as root `sudo su`
-  * Go to home directory `cd`
-  * Activate driver
-    * `cd nexmon/patches/bcm43438/7_45_41_26/nexmon/`
-    * `rmmod brcmfmac`
-    * `insmod brcmfmac/brcmfmac.ko`
-    * `nexutil`
-    * `nexutil -m2`
-  * Check config `iwconfig`
+  * Create `.sniffee` in root folder `mkdir /root/.sniffee/`
+  * Create `receiver` in root `mkdir /root/.sniffee/receiver/`
+  * Create `config.json` in root `nano /root/.sniffee/receiver/config.json`
+  * Create `sender` in root `mkdir /root/.sniffee/sender/`
+  * Create `config.json` in root `nano /root/.sniffee/sender/config.json`  
 
 ### Systemd Automatic Startup and Restart
-
-* Create a systemd service file (see `wifisniffer.service` file in examples)
-  * `sudo nano /etc/systemd/system/wifisniffer.service`
-
-* Add lylaMain service to systemd
-  * `sudo systemctl daemon-reload`
-
+#### Receiver service
+* Create a systemd service file (see `receiver.service` file in examples)
+  * `nano /etc/systemd/system/receiver.service`
+* Add service to systemd
+  * `systemctl daemon-reload`
 * Start automatically at boot
-  * `sudo systemctl enable wifisniffer.service`
-
+  * `systemctl enable receiver.service`
 * To control the systemct
-  * `sudo systemctl start wifisniffer`
-  * `sudo systemctl stop wifisniffer`
-  * `sudo systemctl restart wifisniffer`
-  * `sudo systemctl status wifisniffer -l`
-  * `sudo journalctl -u wifisniffer`
+  * `systemctl start receiver`
+  * `systemctl stop receiver`
+  * `systemctl restart receiver`
+  * `systemctl status receiver -l`
+  * `journalctl -u receiver`
+
+#### Sender service
+* Create a systemd service file (see `sender.service` file in examples)
+  * `nano /etc/systemd/system/sender.service`
+* Add service to systemd
+  * `systemctl daemon-reload`
+* Start automatically at boot
+  * `systemctl enable sender.service`
+* To control the systemct
+  * `systemctl start sender`
+  * `systemctl stop sender`
+  * `systemctl restart sender`
+  * `systemctl status sender -l`
+  * `journalctl -u sender`
 
 ### Console
-
-* Go to virtualenv folder (`WiFiSniffer`)
+* Go to virtualenv folder (`Sniffee`)
 * Activate Virtualenv `source bin/activate`
-* Go to WiFiSniffer `cd python-WiFiSniffer`
-* Execute command `python run.py`

@@ -25,8 +25,8 @@ print(BANNER)
 print("-----------------------------------------------------------------------")
 
 # ------- CONSTANTS
-FOLDER_PATH = ".deembox"
-FOLDER_NAME = "wifisniffer"
+FOLDER_PATH = ".sniffee"
+FOLDER_NAME = "receiver"
 SOCKET_PROTOCOL = 0x0003
 BYTE_READ = 2048
 
@@ -34,21 +34,24 @@ BYTE_READ = 2048
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # ------- Create a raw socket to listen to WiFi chip
-rawSocket  = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(SOCKET_PROTOCOL))
+rawSocket  = socket.socket(socket.AF_PACKET, socket.SOCK_RAW,
+                           socket.htons(SOCKET_PROTOCOL))
 
 # ------- Settings
 def get_setting(setting):
     """
     Get setting from config.json file.
     """
-    path = os.path.join(os.path.expanduser("~"), FOLDER_PATH, FOLDER_NAME, 'config.json')
+    path = os.path.join(os.path.expanduser("~"), FOLDER_PATH,
+                        FOLDER_NAME, 'config.json')
     with open(path) as data_file:
         data = json.load(data_file)
 
         if setting in data:
             return data[setting]
         else:
-            raise Exception("ERROR: Setting %s not in config file" %(setting))
+            raise Exception("ERROR: Setting {0} not in config file"
+                            .format(setting))
 
 # ------- Get Device id/Address
 device_id = get_setting("device_id")
@@ -56,13 +59,13 @@ device_id = get_setting("device_id")
 # ------- Bind to socket define in setting interface
 interface = get_setting("interface")
 rawSocket.bind((interface, SOCKET_PROTOCOL))
-print("INFO: Bind to raw socket %s" %(interface))
+print("INFO: Bind to raw socket {0}".format(interface))
 
 # ------- UDP server address to use
 address = get_setting("udp_ip")
 port = get_setting("udp_port")
 server_address = (address, port)
-print("INFO: UPD socket on ip %s: port %s" %(address, port))
+print("INFO: UPD socket on ip {0}, port {1}".format(address, port))
 
 print("INFO: --------- Start Sniffer -----------")
 try:
@@ -78,10 +81,13 @@ try:
         if wlan and wlan.type == 0 and wlan.subtype == 4:
             ssid = wlan.ies[0].info
             if not ssid:
-                mac = ":".join([format(x, '02x') for x in struct.unpack("BBBBBB", wlan.mgmt.src)])
+                mac = ":".join([format(x, '02x')
+                                for x in struct.unpack("BBBBBB",
+                                                       wlan.mgmt.src)])
                 if not "da:a1:19" in mac:
-                    # print("DEBUG: ssid %s, mac %s" %(ssid, mac))
-                    sent = udp_socket.sendto('{"id": "%s", "mac":"%s"}'%(device_id, mac), server_address)
+                    # print("DEBUG: ssid {0}, mac {1}".format(ssid, mac))
+                    payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
+                    udp_socket.sendto(payload, server_address)
 
 except KeyboardInterrupt:
     print("")
