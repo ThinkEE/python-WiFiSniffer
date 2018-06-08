@@ -1,0 +1,17 @@
+[Unit]
+Description=Sender
+
+[Service]
+Type=simple
+User=root
+Group=root
+StandardInput=null
+StandardOutput=journal
+StandardError=journal
+WorkingDirectory=/home/pi/Sniffee/sniffee/modules/sender
+ExecStart=/home/pi/Sniffee/bin/python  /home/pi/Sniffee/sniffee/modules/sender/sender.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
