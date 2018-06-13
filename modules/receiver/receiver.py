@@ -117,11 +117,11 @@ def rotate(stop):
     while not stop.is_set():
         try:
             channel = str(random.choice(CHANNELS))
-            print("DEBUG: Changing to channel {0}".format(channel))
+            # print("DEBUG: Changing to channel {0}".format(channel))
             os.system("iw dev {0} set channel {1}".format(interface, channel))
             time.sleep(1) # seconds
         except Exception as err:
-            print(err)
+            print("ERROR: Rotating channel failed", err)
 
 stop_rotating = multiprocessing.Event()
 multiprocessing.Process(target=rotate, args=[stop_rotating]).start()
@@ -147,16 +147,16 @@ try:
             frame = packet.data
             if frame.type == dpkt.ieee80211.MGMT_TYPE:
                 mac = to_address(frame.mgmt.src)
-                print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
+                # print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
                 payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
                 udp_socket.sendto(payload, server_address)
             elif frame.type == dpkt.ieee80211.DATA_TYPE:
                 mac = to_address(frame.data_frame.src)
-                print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
+                # print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
                 payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
                 udp_socket.sendto(payload, server_address)
         except Exception as err:
-            print("ERROR", err)
+            print("ERROR: Packet invalid", err)
     packets.loop(-1, loop)
 
 except KeyboardInterrupt:
