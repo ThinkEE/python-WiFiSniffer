@@ -12,7 +12,7 @@
 ################################################################################
 
 import os, sys, json, struct, socket, dpkt, random
-import multiprocessing, Queue, pcapy, datetime
+import multiprocessing, Queue, pcapy, datetime, time
 
 # ------- BANNER
 BANNER =  r"""
@@ -120,8 +120,9 @@ def rotate(stop):
             print("DEBUG: Changing to channel {0}".format(channel))
             os.system("iw dev {0} set channel {1}".format(interface, channel))
             time.sleep(1) # seconds
-        except KeyboardInterrupt:
-            pass
+        except Exception as err:
+            print(err)
+
 stop_rotating = multiprocessing.Event()
 multiprocessing.Process(target=rotate, args=[stop_rotating]).start()
 

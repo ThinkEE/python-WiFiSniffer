@@ -85,12 +85,14 @@ Needs to be install as root user
     echo "Creating Interface mon0"
     iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor
     ifconfig mon0 up
+    ifconfig wlan0 down
     echo "Interface mon0 created"
     ```
+  * Reboot `reboot`
 
 ### Module Installation
 
-* Install dependencies `apt-get install build-essential python-dev libssl-dev libffi-dev python-virtualenv`
+* Install dependencies `apt-get install build-essential python-dev libssl-dev libffi-dev python-virtualenv libpcap-dev`
 * Create Virtualenv (Instruction for Raspbian)
   * `virtualenv Sniffee`
   * `cd Sniffee`
