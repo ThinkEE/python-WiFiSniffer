@@ -11,7 +11,8 @@
 # SOFTWARE.
 ################################################################################
 
-import os, sys, json, struct, socket, dpkt
+import os, sys, json, struct, socket, dpkt, random
+import multiprocessing, Queue, pcapy, datetime
 
 # ------- BANNER
 BANNER =  r"""
@@ -29,6 +30,50 @@ FOLDER_PATH = ".sniffee"
 FOLDER_NAME = "receiver"
 SOCKET_PROTOCOL = 0x0003
 BYTE_READ = 2048
+CHANNELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # 2.4GHz only
+
+SUBTYPES_MANAGEMENT = {
+    0: 'association-request',
+    1: 'association-response',
+    2: 'reassociation-request',
+    3: 'reassociation-response',
+    4: 'probe-request',
+    5: 'probe-response',
+    8: 'beacon',
+    9: 'announcement-traffic-indication-message',
+    10: 'disassociation',
+    11: 'authentication',
+    12: 'deauthentication',
+    13: 'action'
+}
+
+SUBTYPES_CONTROL = {
+    8: 'block-acknowledgement-request',
+    9: 'block-acknowledgement',
+    10: 'power-save-poll',
+    11: 'request-to-send',
+    12: 'clear-to-send',
+    13: 'acknowledgement',
+    14: 'contention-free-end',
+    15: 'contention-free-end-plus-acknowledgement'
+}
+
+SUBTYPES_DATA = {
+    0: 'data',
+    1: 'data-and-contention-free-acknowledgement',
+    2: 'data-and-contention-free-poll',
+    3: 'data-and-contention-free-acknowledgement-plus-poll',
+    4: 'null',
+    5: 'contention-free-acknowledgement',
+    6: 'contention-free-poll',
+    7: 'contention-free-acknowledgement-plus-poll',
+    8: 'qos-data',
+    9: 'qos-data-plus-contention-free-acknowledgement',
+    10: 'qos-data-plus-contention-free-poll',
+    11: 'qos-data-plus-contention-free-acknowledgement-plus-poll',
+    12: 'qos-null',
+    14: 'qos-contention-free-poll-empty'
+}
 
 # ------- Create a UDP socket
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -67,33 +112,61 @@ port = get_setting("udp_port")
 server_address = (address, port)
 print("INFO: UPD socket on ip {0}, port {1}".format(address, port))
 
-print("INFO: --------- Start Sniffer -----------")
-try:
-    while True:
-        data = rawSocket.recvfrom(BYTE_READ)[0]
-        t_len = struct.unpack("B", data[2:3])[0]
-        wlan = None
+# ------- Manage Channels
+def rotate(stop):
+    while not stop.is_set():
         try:
-            wlan = dpkt.ieee80211.IEEE80211(data[t_len:])
-        except Exception as err:
+            channel = str(random.choice(CHANNELS))
+            print("DEBUG: Changing to channel {0}".format(channel))
+            os.system("iw dev {0} set channel {1}".format(interface, channel))
+            time.sleep(1) # seconds
+        except KeyboardInterrupt:
             pass
+stop_rotating = multiprocessing.Event()
+multiprocessing.Process(target=rotate, args=[stop_rotating]).start()
 
-        if wlan and wlan.type == 0 and wlan.subtype == 4:
-            ssid = wlan.ies[0].info
-            if not ssid:
-                mac = ":".join([format(x, '02x')
-                                for x in struct.unpack("BBBBBB",
-                                                       wlan.mgmt.src)])
-                if not "da:a1:19" in mac:
-                    # print("DEBUG: ssid {0}, mac {1}".format(ssid, mac))
-                    payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
-                    udp_socket.sendto(payload, server_address)
+# ------- Decode a MAC or BSSID address
+def to_address(address):
+    return ':'.join('%02x' % ord(b) for b in address)
+
+# ------- Start Sniffing
+print("INFO: --------- Start Sniffer -----------")
+max_packet_size = 256 # bytes
+promiscuous = 0 # boolean masquerading as an int
+timeout = 100 # milliseconds
+
+try:
+    packets = pcapy.open_live(interface, max_packet_size, promiscuous, timeout)
+    packets.setfilter('') # bpf syntax (empty string = everything)
+    def loop(header, data):
+        timestamp = datetime.datetime.now().isoformat()
+        try:
+            packet = dpkt.radiotap.Radiotap(data)
+            packet_signal = -(256 - packet.ant_sig.db) # dBm
+            frame = packet.data
+            if frame.type == dpkt.ieee80211.MGMT_TYPE:
+                mac = to_address(frame.mgmt.src)
+                print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
+                payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
+                udp_socket.sendto(payload, server_address)
+            elif frame.type == dpkt.ieee80211.DATA_TYPE:
+                mac = to_address(frame.data_frame.src)
+                print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
+                payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
+                udp_socket.sendto(payload, server_address)
+        except Exception as err:
+            print("ERROR", err)
+    packets.loop(-1, loop)
 
 except KeyboardInterrupt:
     print("")
     print("INFO: Sniffer stopped on Ctrl-C")
 
+stop_rotating.set() # Stop changing channels
+
 print("INFO: ------------ End Sniffer ----------")
 
-rawSocket.close()
+rawSocket.close() # Close listening socket
 print("INFO: Socket closed")
+print("")
+print("-------------------------------------------------------------------")

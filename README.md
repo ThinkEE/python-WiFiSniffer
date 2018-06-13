@@ -69,7 +69,7 @@ Needs to be install as root user
     * Switch to the nexutil folder: `cd utilities/nexutil/`
     * Compile and install nexutil: `make && make install`
   * Remove wpa_supplicant for better control over the WiFi interface: `apt-get remove wpasupplicant`
-  * Execute: `iw phy \`iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'\` interface add mon0 type monitor`
+  * Execute: `iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor`
   * Set the interface up: `ifconfig mon0 up`
   * Check `iwconfig`
   * To make the RPI3 load the modified driver after reboot:
@@ -77,6 +77,7 @@ Needs to be install as root user
     * Backup the original driver: `mv "<PATH TO THE DRIVER>" "<PATH TO THE DRIVER>.orig"`
     * Copy the modified driver (Kernel 4.14): `cp /home/pi/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/brcmfmac_4.14.y-nexmon/brcmfmac.ko "<PATH TO THE DRIVER>/"`
     * Probe all modules and generate new dependency: `depmod -a`
+    * `cd ../../..`
   * Start interface at Start
     * Open file `nano /etc/rc.local`
     * Add following lines
@@ -89,18 +90,13 @@ Needs to be install as root user
 
 ### Module Installation
 
-* Install Virtualenv `apt-get install python-virtualenv`
-* Install dependencies
-  * `apt-get install build-essential`
-  * `apt-get install python-dev`
-  * `apt-get install libssl-dev`
-  * `apt-get install libffi-dev`
+* Install dependencies `apt-get install build-essential python-dev libssl-dev libffi-dev python-virtualenv`
 * Create Virtualenv (Instruction for Raspbian)
   * `virtualenv Sniffee`
   * `cd Sniffee`
   * `source bin/activate`
 * Clone [WiFiSniffer](https://github.com/ThinkEE/python-WiFiSniffer) in newly created virtualenv
-  * `git clone https://github.com/ThinkEE/python-WiFiSniffer.git sniffee`
+  * `git clone -b master https://github.com/ThinkEE/python-WiFiSniffer.git sniffee`
 * Install dependencies `pip install -r requirements.txt`
 
 ### Initialisation

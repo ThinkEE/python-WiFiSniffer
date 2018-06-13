@@ -2,3 +2,4 @@ dpkt == 1.9.1
 twisted == 17.1.0
 treq == 17.8.0
 pyopenssl == 17.2.0
+pcapy == 0.10.10
