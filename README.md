@@ -86,13 +86,14 @@ Needs to be install as root user
     iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor
     ifconfig mon0 up
     ifconfig wlan0 down
+    ifconfig gprs up
     echo "Interface mon0 created"
     ```
   * Reboot `reboot`
 
 ### Module Installation
 
-* Install dependencies `apt-get install build-essential python-dev libssl-dev libffi-dev python-virtualenv libpcap-dev`
+* Install packages `apt-get install build-essential python-dev libssl-dev libffi-dev python-virtualenv libpcap-dev`
 * Create Virtualenv (Instruction for Raspbian)
   * `virtualenv Sniffee`
   * `cd Sniffee`
@@ -112,6 +113,7 @@ Needs to be install as root user
 
 ### Systemd Automatic Startup and Restart
 #### Receiver service
+
 * Create a systemd service file (see `receiver.service` file in examples)
   * `nano /etc/systemd/system/receiver.service`
 * Add service to systemd
@@ -126,6 +128,7 @@ Needs to be install as root user
   * `journalctl -u receiver`
 
 #### Sender service
+
 * Create a systemd service file (see `sender.service` file in examples)
   * `nano /etc/systemd/system/sender.service`
 * Add service to systemd
@@ -139,6 +142,65 @@ Needs to be install as root user
   * `systemctl status sender -l`
   * `journalctl -u sender`
 
+### GSM Installation
+
+* Install packages `apt-get install ppp usb-modeswitch usb-modeswitch-data`
+* Get TargetVendor and product information `lsusb`
+* Run command to check if it can be switch to modem `usb_modeswitch -v 12d1 -p 15d2 -M '5553424312345678000000000000001106200000010000000000000000000'`
+* Check if it switched `lsusb`
+* Check if modem ready `dmesg|grep USB`
+* Open file `nano /etc/usb_modeswitch.d/12d1:15d2`
+* Add following lines
+```
+# Huawei E353 (3.se)
+
+TargetVendor=  0x12d1
+TargetProduct= 0x15d2
+
+MessageContent="55534243123456780000000000000011062000000100000000000000000000"
+NoDriverLoading=1
+```
+* Create script `nano switchModem`
+```
+#!/bin/bash
+
+echo "Switching modem"
+echo $1
+echo $2
+CONFIG=/etc/usb_modeswitch.d/$1\:$2
+
+sleep 15
+
+usb_modeswitch -D -c $CONFIG
+
+echo "Done Swicthing"
+```
+* Activate script `chmod +x switchModem`
+* Create rule `nano /etc/udev/rules.d/41-usb_modeswitch.rules`
+`ATTRS{idVendor}=="12d1", ATTR{bInterfaceNumber}=="00", ATTR{bInterfaceClass}=="08", RUN+="/home/pi/switchModem %s{idVendor} %s{idProduct}"`
+* Open file `nano /etc/network/interfaces`
+* Add following lines
+```
+auto gprs
+iface gprs inet ppp
+provider gprs
+```
+* Create file `nano /etc/ppp/peers/gprs`
+```
+user "swisscom"
+connect "/usr/sbin/chat -v -f /etc/chatscripts/gprs -T gprs.swisscom.ch"
+/dev/ttyUSB0
+noipdefault
+defaultroute
+replacedefaultroute
+hide-password
+noauth
+persist
+usepeerdns
+```
+* Reboot `reboot`
+
 ### Console
+
 * Go to virtualenv folder (`Sniffee`)
 * Activate Virtualenv `source bin/activate`
