@@ -1,4 +1,6 @@
 {
+  "device_id": "RPI3",
+  "send_all": false,
   "udp_port": 9010,
   "period": 60,
   "expiration": 120,

@@ -11,8 +11,11 @@
 # SOFTWARE.
 ################################################################################
 
-import os, sys, json, struct, socket, dpkt, random
-import multiprocessing, Queue, pcapy, datetime, time
+import os, sys, json, struct, random
+import multiprocessing, Queue, datetime, time
+import pcapy
+import dpkt, socket
+from scapy.all import Dot11, sniff
 
 # ------- BANNER
 BANNER =  r"""
@@ -98,9 +101,6 @@ def get_setting(setting):
             raise Exception("ERROR: Setting {0} not in config file"
                             .format(setting))
 
-# ------- Get Device id/Address
-device_id = get_setting("device_id")
-
 # ------- Bind to socket define in setting interface
 interface = get_setting("interface")
 rawSocket.bind((interface, SOCKET_PROTOCOL))
@@ -130,6 +130,64 @@ multiprocessing.Process(target=rotate, args=[stop_rotating]).start()
 def to_address(address):
     return ':'.join('%02x' % ord(b) for b in address)
 
+# ------- Pcapy / Raw socket decoding
+def dataReceived(data):
+    try:
+        packet = dpkt.radiotap.Radiotap(data)
+        frame = packet.data
+
+        if hasattr(frame, "ies") and frame.ies[0].info:
+            # print("SSID", frame.ies[0].info)
+            return
+
+        packet_signal = -(256 - packet.ant_sig.db) # dBm
+
+        if frame.type == dpkt.ieee80211.MGMT_TYPE:
+            mac = to_address(frame.mgmt.src)
+        elif frame.type == dpkt.ieee80211.DATA_TYPE:
+            mac = to_address(frame.data_frame.src)
+        else:
+            return
+
+        timestamp = datetime.datetime.now().isoformat()
+        payload = ('{"mac":"%s", "timestamp": "%s", "power": "%s"}'
+                    %(mac, timestamp, packet_signal))
+        udp_socket.sendto(payload, server_address)
+        # print("DEBUG: Sending payload {0}".format(payload))
+    except Exception as err:
+        print("ERROR: Packet invalid", err)
+
+# ------- Scapy decoding
+def packetHandler(pkt):
+    try:
+        if pkt.haslayer(Dot11):
+            if hasattr(pkt, "info") and pkt.info:
+                # print("SSID", pkt.info)
+                return
+
+            if pkt.type == 0 or pkt.type == 2:
+                mac = pkt.addr2
+                # print("DEBUG: mac {0}".format(mac))
+            else:
+                return
+
+            try:
+                rssi = -(256-ord(pkt.notdecoded[-2:-1]))
+            except:
+                rssi = -100
+            else:
+                # print("DEBUG: RSSI {0}".format(rssi))
+                pass
+
+            timestamp = datetime.datetime.utcnow().isoformat()
+            payload = ('{"mac":"%s", "timestamp": "%s", "power": "%s"}'
+                        %(mac, timestamp, rssi))
+            udp_socket.sendto(payload, server_address)
+            # print("DEBUG: Sending payload {0}".format(payload), payload)
+
+    except Exception as err:
+        print("ERROR: Packet invalid", err)
+
 # ------- Start Sniffing
 print("INFO: --------- Start Sniffer -----------")
 max_packet_size = 256 # bytes
@@ -137,27 +195,21 @@ promiscuous = 0 # boolean masquerading as an int
 timeout = 100 # milliseconds
 
 try:
-    packets = pcapy.open_live(interface, max_packet_size, promiscuous, timeout)
-    packets.setfilter('') # bpf syntax (empty string = everything)
-    def loop(header, data):
-        timestamp = datetime.datetime.now().isoformat()
-        try:
-            packet = dpkt.radiotap.Radiotap(data)
-            packet_signal = -(256 - packet.ant_sig.db) # dBm
-            frame = packet.data
-            if frame.type == dpkt.ieee80211.MGMT_TYPE:
-                mac = to_address(frame.mgmt.src)
-                # print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
-                payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
-                udp_socket.sendto(payload, server_address)
-            elif frame.type == dpkt.ieee80211.DATA_TYPE:
-                mac = to_address(frame.data_frame.src)
-                # print("DEBUG: Sending mac {0}, type: dpkt.ieee80211.MGMT_TYPE".format(mac))
-                payload = '{"id": "%s", "mac":"%s"}'%(device_id, mac)
-                udp_socket.sendto(payload, server_address)
-        except Exception as err:
-            print("ERROR: Packet invalid", err)
-    packets.loop(-1, loop)
+    # ------- Pcapy sniffing
+    # packets = pcapy.open_live(interface, max_packet_size, promiscuous, timeout)
+    # packets.setfilter('') # bpf syntax (empty string = everything)
+    # def loop(header, data):
+    #     dataReceived(data)
+    #
+    # packets.loop(-1, loop)
+
+    # ------- Raw socket sniffing
+    # while True:
+    #     data = rawSocket.recvfrom(BYTE_READ)[0]
+    #     dataReceived(data)
+
+    # ------- Scapy sniffing
+    sniff(iface=interface, prn=packetHandler)
 
 except KeyboardInterrupt:
     print("")

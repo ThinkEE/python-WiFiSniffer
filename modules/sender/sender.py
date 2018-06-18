@@ -32,6 +32,8 @@ print("-----------------------------------------------------------------------")
 FOLDER_PATH = ".sniffee"
 FOLDER_NAME = "sender"
 CMD_COUNT = "count"
+MAC = "mac"
+POWER = "power"
 
 # ------- Settings
 def get_setting(setting):
@@ -52,6 +54,8 @@ def get_setting(setting):
 class UDP(DatagramProtocol):
 
     def __init__(self):
+        self.device_id = get_setting("device_id")
+        self.send_all = get_setting("send_all")
         self.udp_port = get_setting("udp_port")
         self.period = get_setting("period")
         self.expiration = get_setting("expiration")
@@ -61,13 +65,17 @@ class UDP(DatagramProtocol):
         # Mac addresses map per device.
         # It includes time at which it was added.
         # All addresses older than XXmin (see config.json) are removed
-        self.mac_addresses_device = {}
+        self.mac_addresses_device = []
+
+        # Next payload to send
+        self.payload = []
 
         # Number of device
         self.nb_devices = 0
 
         # Watchdog cheking for mac address validity
-        self.watchDog = task.LoopingCall(self.checkExpiredMac)
+        # self.watchDog = task.LoopingCall(self.checkExpiredMac)
+        self.watchDog = task.LoopingCall(self.sendMacAddresses)
 
     def start(self, reactor):
         print("INFO: Start Sender")
@@ -85,7 +93,14 @@ class UDP(DatagramProtocol):
         else:
             # print("DEBUG: Received mac address {0} from device {1}"
             #       .format(msg["mac"], msg["id"]))
-            self.new_mac_address(msg["id"], msg["mac"])
+            mac = msg["mac"]
+            if not mac in self.mac_addresses_device:
+                # print("DEBUG: Adding mac address {0}".format(mac))
+                self.nb_devices += 1
+                self.mac_addresses_device.append(mac)
+
+            self.payload.append({"id": MAC, "data": mac, "timestamp": msg["timestamp"]})
+            self.payload.append({"id": POWER, "data": msg["power"], "timestamp": msg["timestamp"]})
 
     # ------------------- Sniffer Related Functions ----------------------------
 
@@ -96,63 +111,36 @@ class UDP(DatagramProtocol):
 
         self.watchDog.start(self.period, now=False).addErrback(self.error)
 
-    def new_mac_address(self, device_id, mac):
-        _time = int(time.time())
+    def sendMacAddresses(self):
+        self.payload, payload = [], self.payload
+        self.nb_devices, nb_devices = 0, self.nb_devices
+        self.mac_addresses_device = []
 
-        if not device_id in self.mac_addresses_device:
-            self.mac_addresses_device[device_id] = {}
+        if self.send_all:
+            payload.append({ "id": CMD_COUNT, "data": nb_devices })
+        else:
+            payload = [{ "id": CMD_COUNT, "data": nb_devices }]
 
-        if not mac in self.mac_addresses_device[device_id]:
-            # print("DEBUG: Adding mac address {0}".format(mac))
-            self.mac_addresses_device[device_id][mac] = _time
-            self.nb_devices += 1
-
-        else: # Update last update
-            self.mac_addresses_device[device_id][mac] = _time
-
-    def remove_mac_address(self, device_id, mac):
-        del self.mac_addresses_device[device_id][mac]
-        self.nb_devices -= 1
-
-    def checkExpiredMac(self):
-        # print("DEBUG: Start checking expired Mac Address")
-
-        _time = int(time.time())
-        expiration = _time - self.expiration
-        for device_id, mac_addresses in self.mac_addresses_device.items():
-            for mac, _time in mac_addresses.items():
-                if _time < expiration:
-                    # print("DEBUG: Removing mac address {0}".format(mac))
-                    self.remove_mac_address(device_id, mac)
-
-            self.sendData(device_id, CMD_COUNT, self.nb_devices)
-
-        # print("DEBUG: Check done")
-
-    def sendData(self, device_id, cmd, data):
-        @inlineCallbacks
-        def response(_response):
-            # print("**** Received Response ********", _response)
-            if _response.code == 200:
-                # print("DEBUG: Message sent")
-                pass
-            else:
-                content = yield _response.content()
-                print("ERROR: {0}".format(content))
-
-        # print("DEBUG: Send to device: {0}, cmd: {1}, data: {2}"
-        #       .format(device_id, cmd, data))
-
-        payload = {
-            "dev_id": device_id,
-            "cmd_keys": [
-                { "id": cmd, "data": data }
-            ]
+        message = {
+            "dev_id": self.device_id,
+            "cmd_keys": payload
         }
-        d = treq.post(self.post_url,
-                      json.dumps(payload).encode('ascii'),
+
+        message = json.dumps(message).encode('ascii')
+        # print("DEBUG: Payload length {0}".format(len(message)), message)
+        d = treq.post(self.post_url, message,
                       headers={b'Content-Type': [b'application/json']})
-        d.addCallback(response)
+        d.addCallback(self.response)
+
+    @inlineCallbacks
+    def response(self, _response):
+        # print("**** Received Response ********", _response)
+        if _response.code == 200:
+            # print("DEBUG: Message sent")
+            pass
+        else:
+            content = yield _response.content()
+            print("ERROR: {0}".format(content))
 
 if __name__ == '__main__':
     print("INFO: Starting Reactor")

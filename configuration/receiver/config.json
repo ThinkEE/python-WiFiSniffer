@@ -1,5 +1,4 @@
 {
-  "device_id": "RPI3",
   "interface": "mon0",
   "udp_ip": "localhost",
   "udp_port": 9010
