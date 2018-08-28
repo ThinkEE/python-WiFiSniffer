@@ -38,6 +38,11 @@ Needs to be install as root user
   * Password: `raspberry`
 * Share Internet connection
 
+If you have troubles connecting to RPI over ethernet on Ubuntu, try this :
+* Open the `edit connexions` settings (top-right bar)
+* Select the `wired connection X` corresponding to the RPI and go to IPv4 tab
+* Set method to `Link-local Only`
+
 ### Environment Installation
 
 `Needs to be install as root user`
