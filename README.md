@@ -37,6 +37,12 @@ Needs to be install as root user
   * User: `pi`
   * Password: `raspberry`
 * Share Internet connection
+  * On Ubuntu :
+    * Unplug RPI
+    * Open the `edit connexions` settings (top-right bar)
+    * Select the `wired connection X` corresponding to the RPI and go to IPv4 tab
+    * Set method to `Link-local Only`
+    * Plug RPI
 
 ### Environment Installation
 

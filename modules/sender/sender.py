@@ -99,8 +99,9 @@ class UDP(DatagramProtocol):
                 self.nb_devices += 1
                 self.mac_addresses_device.append(mac)
 
-            self.payload.append({"id": MAC, "data": mac, "timestamp": msg["timestamp"]})
-            self.payload.append({"id": POWER, "data": msg["power"], "timestamp": msg["timestamp"]})
+            # self.payload.append({"id": MAC, "data": mac, "timestamp": msg["timestamp"]})
+            # self.payload.append({"id": POWER, "data": msg["power"], "timestamp": msg["timestamp"]})
+            self.payload.append({"id": MAC, "data": {"mac": mac, "power": msg["power"]}, "timestamp": msg["timestamp"]})
 
     # ------------------- Sniffer Related Functions ----------------------------
 

@@ -5,5 +5,5 @@
   "period": 60,
   "expiration": 120,
   "interface": "127.0.0.1",
-  "post_url": "https://alpha.thinkee.ch/http/http"
+  "post_url": "https://alpha.thinkee.io/http/http"
 }

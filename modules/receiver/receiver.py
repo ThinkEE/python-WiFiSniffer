@@ -174,7 +174,7 @@ def packetHandler(pkt):
             try:
                 rssi = -(256-ord(pkt.notdecoded[-2:-1]))
             except:
-                rssi = -100
+                rssi = -256
             else:
                 # print("DEBUG: RSSI {0}".format(rssi))
                 pass

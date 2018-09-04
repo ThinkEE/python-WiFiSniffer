@@ -8,7 +8,7 @@ INVALID_POWER = -255
 MAC_directory = {}
 data = {}
 
-random_adress_prefix = "da:a1:19"
+RANDOM_ADDRESS_PREFIX = "da:a1:19"
 
 # Import the private MAC addresses directory
 with open("MAC_directory.json", "r") as f:
