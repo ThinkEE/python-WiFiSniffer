@@ -24,13 +24,12 @@ Needs to be install as root user
 
 ### RPI Installation
 
-* Flash image on RPI
-* Boot RPI
 * Plug SD card to computer
+* Flash image on RPI's microSD
 * Configure [OTG](http://www.circuitbasics.com/raspberry-pi-zero-ethernet-gadget/)
   * Add `modules-load=dwc2,g_ether` at end of file `cmdline.txt`
   * Add `dtoverlay=dwc2` in file `config.txt`
-* Create file `ssh` on SD card
+* Create empty file `ssh` on SD card `boot` partition
 
 * Boot RPI
 * Connect as SSH `ssh pi@raspberrypi.local`
@@ -53,6 +52,7 @@ Needs to be install as root user
 * Build patches for bcm43430a1 on the RPI3/Zero W or bcm434355c0 on the RPI3+ using Raspbian (recommended). Duplicate from [Nexmon github repo](https://github.com/seemoo-lab/nexmon)
   * Log as root `sudo su`
   * `apt-get update && apt-get upgrade`
+  * Reboot RPI
   * Install the kernel headers to build the driver and some dependencies: `apt install raspberrypi-kernel-headers git libgmp3-dev gawk qpdf bison flex make`
   * Clone `git clone https://github.com/seemoo-lab/nexmon.git`
   * `cd nexmon`
@@ -69,16 +69,16 @@ Needs to be install as root user
   * Go to the patches folder for the `bcm43430a1/bcm43455c0` chipset: `cd patches/bcm43430a1/7_45_41_46/nexmon/`
     * Compile a patched firmware: `make`
     * Generate a backup of your original firmware file: `make backup-firmware`
-    * Install the patched firmware on your RPI3: `make install-firmware`
+    * Install the patched firmware on your RPI: `make install-firmware`
     * `cd ../../../..`
   * Install nexutil from the root directory of our repository
     * Switch to the nexutil folder: `cd utilities/nexutil/`
     * Compile and install nexutil: `make && make install`
   * Remove wpa_supplicant for better control over the WiFi interface: `apt-get remove wpasupplicant`
-  * Execute: `iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor`
+  * Execute: ```iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor```
   * Set the interface up: `ifconfig mon0 up`
   * Check `iwconfig`
-  * To make the RPI3 load the modified driver after reboot:
+  * To make the RPI load the modified driver after reboot:
     * Find the path of the default driver at reboot: `modinfo brcmfmac` #the first line should be the full path
     * Backup the original driver: `mv "<PATH TO THE DRIVER>" "<PATH TO THE DRIVER>.orig"`
     * Copy the modified driver (Kernel 4.14): `cp /home/pi/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/brcmfmac_4.14.y-nexmon/brcmfmac.ko "<PATH TO THE DRIVER>/"`
@@ -86,7 +86,7 @@ Needs to be install as root user
     * `cd ../../..`
   * Start interface at Start
     * Open file `nano /etc/rc.local`
-    * Add following lines
+    * Add following lines before `exit 0`
     ```
     echo "Creating Interface mon0"
     iw phy `iw dev wlan0 info | gawk '/wiphy/ {printf "phy" $2}'` interface add mon0 type monitor
