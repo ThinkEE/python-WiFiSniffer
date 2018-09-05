@@ -13,7 +13,7 @@ Code used to sniff the packet around the RPI. It catches the mac addresses and s
 
 See `config.json` file in configuration folder
 
-* Interface to listen for incoming packet  `"interface": "wlan0"`
+* Interface to listen for incoming packet  `"interface": "mon0"`
 * UDP address to send to `"udp_ip": "localhost"`
 * UDP port to send to `"udp_port": 9010`
 
